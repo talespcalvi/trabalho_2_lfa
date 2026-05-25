@@ -2,7 +2,6 @@ Variáveis: S A B C D E
 Terminais: a b c d e eps
 Simbolo inicial: S
 Transições:
-S aA
-S eps
-A bBaA
-A eps
+S ABa
+A aab 
+B Ac
