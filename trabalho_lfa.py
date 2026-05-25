@@ -19,14 +19,12 @@ class Gramatica:
                 self.variaveis = set(linha.split(":")[1].replace(" ", ""))
             elif linha.startswith("Terminais:"):
                 term_str = linha.split(":")[1].strip()
-                # Separar os terminais (considerando 'eps' como um token especial)
                 self.terminais = set([t for t in term_str.split(" ") if t])
             elif linha.startswith("Simbolo inicial:"):
                 self.inicial = linha.split(":")[1].strip()
             elif linha.startswith("Transições:"):
                 modo = "transicoes"
             elif modo == "transicoes":
-                # O espaço separa o lado esquerdo (LHS) do lado direito (RHS)
                 partes = linha.split(" ", 1)
                 if len(partes) == 2:
                     lhs = partes[0].strip()
@@ -53,9 +51,6 @@ class Gramatica:
                     rhs_str = "".join(rhs)
                     f.write(f"{lhs} {rhs_str}\n")
 
-    # ==========================================
-    # TESTE DA GRAMÁTICA ORIGINAL (BFS)
-    # ==========================================
     def testar_palavra_original(self, palavra_str):
         """
         Testa se a palavra é aceita pela gramática original (antes da limpeza/CNF)
@@ -63,7 +58,7 @@ class Gramatica:
         """
         fila = [([self.inicial], 0)]
         visitados = set()
-        limite_profundidade = 20 # Limite de segurança para evitar loops infinitos (ex: A -> B -> A)
+        limite_profundidade = 20
         
         while fila:
             forma_atual, profundidade = fila.pop(0)
@@ -80,12 +75,10 @@ class Gramatica:
                 continue
             visitados.add(estado)
             
-            # Encontra a primeira variável para derivar (derivação mais à esquerda)
             for i, sym in enumerate(forma_atual):
                 if sym in self.variaveis:
                     for rhs in self.transicoes.get(sym, []):
                         nova_forma = forma_atual[:i]
-                        # Se for 'eps', não adiciona nada, apenas consome a variável
                         if rhs != ["eps"]:
                             nova_forma.extend(rhs)
                         nova_forma.extend(forma_atual[i+1:])
@@ -93,10 +86,8 @@ class Gramatica:
                     break 
                     
         return False
-
-    # ==========================================
-    # PARTE 1: LIMPEZA DA GRAMÁTICA
-    # ==========================================
+    
+    # Limpeza da Gramática
     def limpar_gramatica(self):
         self._remover_producoes_vazias()
         self._remover_producoes_unidade()
@@ -195,9 +186,8 @@ class Gramatica:
         self.transicoes = trans_finais
         self.variaveis = geradoras.intersection(alcancaveis)
 
-    # ==========================================
-    # PARTE 2: FORMA NORMAL DE CHOMSKY (CNF)
-    # ==========================================
+
+    # Conversão para Chomsky
     def converter_para_cnf(self):
         novas_transicoes = defaultdict(list)
         contador_var = 1
@@ -238,9 +228,7 @@ class Gramatica:
                 
         self.transicoes = transicoes_cnf
 
-    # ==========================================
-    # PARTE 3: TESTE DA GRAMÁTICA (Derivação)
-    # ==========================================
+    # Teste de palavras
     def testar_palavra(self, palavra_str):
         palavra = list(palavra_str)
         n = len(palavra)
@@ -338,10 +326,6 @@ class Gramatica:
                     print(f"{estado_str}")
                     break
 
-
-# ==========================================
-# EXECUÇÃO PRINCIPAL
-# ==========================================
 if __name__ == "__main__":
     g = Gramatica()
     print("1. Carregando Gramática do arquivo 'entrada.txt'...")
