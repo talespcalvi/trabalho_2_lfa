@@ -54,6 +54,47 @@ class Gramatica:
                     f.write(f"{lhs} {rhs_str}\n")
 
     # ==========================================
+    # TESTE DA GRAMÁTICA ORIGINAL (BFS)
+    # ==========================================
+    def testar_palavra_original(self, palavra_str):
+        """
+        Testa se a palavra é aceita pela gramática original (antes da limpeza/CNF)
+        usando Busca em Largura (BFS) simulando uma derivação mais à esquerda.
+        """
+        fila = [([self.inicial], 0)]
+        visitados = set()
+        limite_profundidade = 20 # Limite de segurança para evitar loops infinitos (ex: A -> B -> A)
+        
+        while fila:
+            forma_atual, profundidade = fila.pop(0)
+            forma_str = "".join(forma_atual)
+            
+            if forma_str == palavra_str:
+                return True
+                
+            if profundidade > limite_profundidade:
+                continue
+                
+            estado = tuple(forma_atual)
+            if estado in visitados:
+                continue
+            visitados.add(estado)
+            
+            # Encontra a primeira variável para derivar (derivação mais à esquerda)
+            for i, sym in enumerate(forma_atual):
+                if sym in self.variaveis:
+                    for rhs in self.transicoes.get(sym, []):
+                        nova_forma = forma_atual[:i]
+                        # Se for 'eps', não adiciona nada, apenas consome a variável
+                        if rhs != ["eps"]:
+                            nova_forma.extend(rhs)
+                        nova_forma.extend(forma_atual[i+1:])
+                        fila.append((nova_forma, profundidade + 1))
+                    break 
+                    
+        return False
+
+    # ==========================================
     # PARTE 1: LIMPEZA DA GRAMÁTICA
     # ==========================================
     def limpar_gramatica(self):
@@ -62,7 +103,6 @@ class Gramatica:
         self._remover_producoes_inuteis()
 
     def _remover_producoes_vazias(self):
-        # 1. Encontrar variáveis anuláveis (que geram 'eps')
         anulaveis = set()
         mudou = True
         while mudou:
@@ -75,7 +115,6 @@ class Gramatica:
                         mudou = True
                         break
 
-        # 2. Gerar combinações sem as variáveis anuláveis
         novas_transicoes = defaultdict(list)
         for lhs, rhss in self.transicoes.items():
             for rhs in rhss:
@@ -84,7 +123,6 @@ class Gramatica:
                 indices_anulaveis = [i for i, sym in enumerate(rhs) if sym in anulaveis]
                 num_anulaveis = len(indices_anulaveis)
                 
-                # Gerar todas as sub-combinações (potência)
                 for r in range(num_anulaveis + 1):
                     para_remover = list(itertools.combinations(indices_anulaveis, r))
                     for remocao in para_remover:
@@ -112,14 +150,13 @@ class Gramatica:
         novas_transicoes = defaultdict(list)
         for A, B in pares_unidade:
             for rhs in self.transicoes.get(B, []):
-                if not (len(rhs) == 1 and rhs[0] in self.variaveis): # Não é unidade
+                if not (len(rhs) == 1 and rhs[0] in self.variaveis):
                     if rhs not in novas_transicoes[A]:
                         novas_transicoes[A].append(rhs)
                         
         self.transicoes = novas_transicoes
 
     def _remover_producoes_inuteis(self):
-        # 1. Variáveis Geradoras
         geradoras = set()
         mudou = True
         while mudou:
@@ -132,7 +169,6 @@ class Gramatica:
                         mudou = True
                         break
 
-        # Filtrar produções não geradoras
         trans_geradoras = defaultdict(list)
         for lhs, rhss in self.transicoes.items():
             if lhs in geradoras:
@@ -141,7 +177,6 @@ class Gramatica:
                         trans_geradoras[lhs].append(rhs)
         self.transicoes = trans_geradoras
 
-        # 2. Variáveis Alcançáveis
         alcancaveis = set([self.inicial])
         fila = [self.inicial]
         while fila:
@@ -152,7 +187,6 @@ class Gramatica:
                         alcancaveis.add(sym)
                         fila.append(sym)
 
-        # Filtrar não alcançáveis
         trans_finais = defaultdict(list)
         for lhs, rhss in self.transicoes.items():
             if lhs in alcancaveis:
@@ -169,7 +203,6 @@ class Gramatica:
         contador_var = 1
         mapa_terminais = {}
 
-        # Passo 1: Separar terminais de variáveis em produções de tamanho >= 2
         for lhs, rhss in self.transicoes.items():
             for rhs in rhss:
                 if len(rhs) >= 2:
@@ -188,7 +221,6 @@ class Gramatica:
                 else:
                     novas_transicoes[lhs].append(rhs)
 
-        # Passo 2: Reduzir produções longas (tamanho >= 3)
         transicoes_cnf = defaultdict(list)
         for lhs, rhss in novas_transicoes.items():
             for rhs in rhss:
@@ -210,17 +242,14 @@ class Gramatica:
     # PARTE 3: TESTE DA GRAMÁTICA (Derivação)
     # ==========================================
     def testar_palavra(self, palavra_str):
-        palavra = list(palavra_str) # Assume que terminais são de 1 caractere na palavra de teste
+        palavra = list(palavra_str)
         n = len(palavra)
         if n == 0:
             print("Palavra vazia não suportada no teste CNF padrão sem epsilon.")
             return
 
-        # Inicializa tabela CYK
-        # Tabela armazenará tuplas: (Variável_Geradora, Regra_Usada_Str, Posição_Corte, Filho_Esq, Filho_Dir)
         tabela = [[[] for _ in range(n)] for _ in range(n)]
 
-        # Base do CYK (tamanho 1)
         for i in range(n):
             terminal = palavra[i]
             for lhs, rhss in self.transicoes.items():
@@ -228,7 +257,6 @@ class Gramatica:
                     if len(rhs) == 1 and rhs[0] == terminal:
                         tabela[i][i].append((lhs, f"{lhs} -> {terminal}", None, None, None))
 
-        # Passo Indutivo CYK (tamanho >= 2)
         for l in range(2, n + 1):
             for i in range(n - l + 1):
                 j = i + l - 1
@@ -248,56 +276,33 @@ class Gramatica:
                                             (var_dir, k+1, j)
                                         ))
 
-        # Verificar se aceita
         aceito = False
-        raiz_derivação = None
+        raiz_derivacao = None
         for item in tabela[0][n-1]:
             if item[0] == self.inicial:
                 aceito = True
-                raiz_derivação = item
+                raiz_derivacao = item
                 break
 
-        print(f"\n--- Teste da Palavra: '{palavra_str}' ---")
+        print(f"\n--- Teste da Palavra em CNF: '{palavra_str}' ---")
         if not aceito:
-            print("A palavra NÃO é reconhecida pela gramática.")
+            print("A palavra NÃO é reconhecida pela gramática FNC.")
         else:
             print("Palavra reconhecida! Gerando passo a passo:")
             self._imprimir_derivacao(tabela, 0, n-1, self.inicial, palavra_str)
 
     def _imprimir_derivacao(self, tabela, i, j, variavel_alvo, palavra_original):
-        # Constrói a árvore a partir dos backpointers do CYK
         def extrair_arvore(r_i, r_j, var):
             for item in tabela[r_i][r_j]:
                 if item[0] == var:
-                    return item # Retorna a tupla do nó
+                    return item
             return None
 
         raiz = extrair_arvore(i, j, variavel_alvo)
         
-        # Algoritmo simples de derivação mais à esquerda (Leftmost Derivation)
-        forma_sentencial = [variavel_alvo]
-        
-        # Para simular a derivação, usaremos uma pilha de substituições rastreando a árvore
-        # Como o CYK nos dá uma árvore completa, vamos percorrê-la e aplicar as regras no nosso array
-        
-        def obter_folhas_arvore(no_info, b_i, b_j):
-            _, regra, k, f_esq, f_dir = no_info
-            if f_esq is None and f_dir is None:
-                # É uma regra para terminal A -> a
-                return regra
-            
-            # Precisamos substituir a primeira variável que encontrar
-            # Para impressão iterativa:
-            pass
-            
-        # Como a exigência é mostrar a aplicação sequencial[cite: 31, 32]:
-        nos_pendentes = [(raiz, i, j)]
         forma_atual = [variavel_alvo]
-        
         print(f"{''.join(forma_atual)}")
         
-        # Fazendo uma travessia DFS (Derivação mais à esquerda)
-        # Vamos reconstruir a árvore completa em memória primeiro para facilitar
         class No:
             def __init__(self, var, regra, f_esq=None, f_dir=None):
                 self.var = var
@@ -314,7 +319,6 @@ class Gramatica:
 
         arvore_raiz = construir_arvore(i, j, variavel_alvo)
         
-        # Simula a derivação
         cadeia = [arvore_raiz]
         while any(isinstance(x, No) for x in cadeia):
             for idx, elemento in enumerate(cadeia):
@@ -322,12 +326,11 @@ class Gramatica:
                     regra_aplicada = elemento.regra
                     print(f"  (Aplica regra: {regra_aplicada})")
                     
-                    if elemento.f_esq is None: # Vai para terminal
+                    if elemento.f_esq is None:
                         cadeia[idx] = regra_aplicada.split("->")[1].strip()
                     else:
                         cadeia = cadeia[:idx] + [elemento.f_esq, elemento.f_dir] + cadeia[idx+1:]
                     
-                    # Imprime estado atual
                     estado_str = ""
                     for x in cadeia:
                         if isinstance(x, No): estado_str += x.var
@@ -348,6 +351,15 @@ if __name__ == "__main__":
         print("Erro: Crie um arquivo 'entrada.txt' no mesmo diretório seguindo o formato do trabalho.")
         sys.exit(1)
 
+    # Definir as palavras para o teste comparativo
+    palavras_teste = ["a", "aba", "aabaabca"] 
+
+    print("\n--- Parte 0: Teste na Gramática Original (Antes da Limpeza) ---")
+    for p in palavras_teste:
+        aceita = g.testar_palavra_original(p)
+        status = "RECONHECIDA" if aceita else "NÃO RECONHECIDA"
+        print(f"Palavra '{p}': {status}")
+
     print("\n--- Parte 1: Limpeza da Gramática ---")
     g.limpar_gramatica()
     g.salvar_arquivo("saida_limpa.txt", "Gramática Limpa")
@@ -358,8 +370,6 @@ if __name__ == "__main__":
     g.salvar_arquivo("saida_cnf.txt", "Gramática na Forma Normal de Chomsky")
     print("Gramática CNF salva em 'saida_cnf.txt'.")
 
-    print("\n--- Parte 3: Teste de Palavras ---")
-    # Altere as palavras abaixo conforme as palavras suportadas pela sua gramática original
-    palavras_teste = ["aba", "ab"] 
+    print("\n--- Parte 3: Teste de Palavras (Pós-Conversão CNF) ---")
     for p in palavras_teste:
         g.testar_palavra(p)
