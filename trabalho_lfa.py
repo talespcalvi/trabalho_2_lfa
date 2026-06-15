@@ -53,16 +53,21 @@ class Gramatica:
 
     def testar_palavra_original(self, palavra_str):
         """
-        Testa se a palavra é aceita pela gramática original (antes da limpeza/CNF)
-        usando Busca em Largura (BFS) simulando uma derivação mais à esquerda.
+        Testa se a palavra é aceita usando Busca em Largura (BFS) otimizada.
         """
-        fila = [([self.inicial], 0)]
+        from collections import deque
+        
+        # deque é muito mais rápido que uma lista normal para .pop(0)
+        fila = deque([([self.inicial], 0)]) 
         visitados = set()
-        limite_profundidade = 20
+        limite_profundidade = 12 # Reduzido para evitar tempo infinito
         
         while fila:
-            forma_atual, profundidade = fila.pop(0)
-            forma_str = "".join(forma_atual)
+            forma_atual, profundidade = fila.popleft()
+            
+            # Filtra os 'eps' para ver a string real gerada até agora
+            forma_real = [s for s in forma_atual if s != "eps"]
+            forma_str = "".join(forma_real)
             
             if forma_str == palavra_str:
                 return True
@@ -75,6 +80,12 @@ class Gramatica:
                 continue
             visitados.add(estado)
             
+            # Otimização de poda: conta os terminais
+            qtd_terminais = sum(1 for sym in forma_real if sym in self.terminais)
+            # Se a forma atual tem mais terminais que a palavra alvo, descarta esse caminho
+            if qtd_terminais > len(palavra_str):
+                continue
+            
             for i, sym in enumerate(forma_atual):
                 if sym in self.variaveis:
                     for rhs in self.transicoes.get(sym, []):
@@ -83,7 +94,7 @@ class Gramatica:
                             nova_forma.extend(rhs)
                         nova_forma.extend(forma_atual[i+1:])
                         fila.append((nova_forma, profundidade + 1))
-                    break 
+                    break # Derivação mais à esquerda (leftmost)
                     
         return False
     
@@ -185,7 +196,6 @@ class Gramatica:
         
         self.transicoes = trans_finais
         self.variaveis = geradoras.intersection(alcancaveis)
-
 
     # Conversão para Chomsky
     def converter_para_cnf(self):
@@ -336,7 +346,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Definir as palavras para o teste comparativo
-    palavras_teste = ["a", "aba", "aabaabca"] 
+    palavras_teste = ["b", "ab", "aba", "aaba", "bbb", "a", "aa", "bb", "c", "ac"] 
 
     print("\n--- Parte 0: Teste na Gramática Original (Antes da Limpeza) ---")
     for p in palavras_teste:
