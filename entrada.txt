@@ -1,7 +1,17 @@
-Variáveis: S A B C D E
-Terminais: a b c d e eps
-Simbolo inicial: S
+Variáveis: X Y Z K W T
+Terminais: a b c
+Simbolo inicial: X
 Transições:
-S ABa
-A aab 
-B Ac
+X KW
+X aK
+Y eps
+Y XWb
+Z XK
+Z Y
+Z cK
+K b
+K XWa
+W Y
+W XbY
+T cZY
+T YbZ
